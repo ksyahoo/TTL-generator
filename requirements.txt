@@ -1,0 +1,6 @@
+streamlit
+pillow
+rembg[cli]
+onnxruntime
+requests
+watchdog
