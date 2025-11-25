@@ -1,19 +1,3 @@
-import subprocess
-import time
-import os
-
-# 1. 安裝必要套件
-print("正在準備執行環境...")
-!pip install -q streamlit watchdog rembg[cli] onnxruntime-gpu requests
-
-# 2. 寫入 app.py (參數修正版)
-import streamlit as st
-from PIL import Image, ImageDraw, ImageFont
-import io
-from rembg import remove
-import requests
-
-code = """
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -23,6 +7,9 @@ import requests
 # --- 設定區 ---
 CANVAS_WIDTH = 888
 CANVAS_HEIGHT = 1020
+
+# 設定頁面資訊
+st.set_page_config(page_title="AI 電商圖卡生成器", layout="centered")
 
 def load_font(font_file, size):
     if font_file is None:
@@ -49,8 +36,10 @@ def get_darkest_color(img):
         small_img = img.resize((150, 150))
         rgb_img = small_img.convert("RGB")
         pixels = list(rgb_img.getdata())
+        # 簡單的亮度公式，數值越低越暗
         darkest = min(pixels, key=lambda p: 0.299*p[0] + 0.587*p[1] + 0.114*p[2])
-        return darkest
+        # 轉回 Hex 色碼
+        return '#{:02x}{:02x}{:02x}'.format(*darkest)
     except:
         return "#c94f3f"
 
@@ -86,7 +75,7 @@ def create_composite_image(bg_img, prod1_img, prod2_img, text1, text2, btn_text,
     prod_area_h = CANVAS_HEIGHT * 0.4
     images = []
     
-    with st.spinner('AI 正在幫商品去背中...'):
+    with st.spinner('AI 正在幫商品去背中... (首次執行需下載模型，請稍候)'):
         if prod1_img:
             img1 = remove(prod1_img)
             images.append(img1)
@@ -178,12 +167,12 @@ with col1:
 
 with col2:
     st.write("---")
-    st.info(\"\"\"
+    st.info("""
     * 可上傳背景圖 
     * 可上傳兩張商品圖，圖片自動去背
     * 可自訂標題及按鈕文字
     * 按鈕可自動偵測背景選色
-    \"\"\")
+    """)
     
     text_line1 = st.text_input("主標題", "NIKE x 愛迪達")
     text_line2 = st.text_input("副標題", "結帳享84折")
@@ -197,7 +186,7 @@ if st.button("生成圖片"):
             final, detected_color = create_composite_image(bg_img, p1_img, p2_img, text_line1, text_line2, btn_text, font_upload)
             
             st.success(f"生成完成！使用色碼: {detected_color}")
-            # 修正參數：use_column_width -> use_container_width
+            # 使用新版參數
             st.image(final, caption="預覽", use_container_width=True)
             buf = io.BytesIO()
             final.save(buf, format="PNG")
@@ -206,23 +195,3 @@ if st.button("生成圖片"):
             st.error(f"發生錯誤: {e}")
     else:
         st.warning("請確保背景圖與兩張商品圖皆已準備好。")
-"""
-
-with open("app.py", "w", encoding="utf-8") as f:
-    f.write(code)
-
-# 3. 啟動 Cloudflare Tunnel
-print("✅ 程式更新完成！請執行此區塊啟動網頁。")
-!pkill streamlit
-!rm tunnel.log 2> /dev/null
-subprocess.Popen(["streamlit", "run", "app.py"])
-
-if not os.path.exists("cloudflared"):
-    !wget -q -O cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-    !chmod +x cloudflared
-
-!nohup ./cloudflared tunnel --url http://localhost:8501 > tunnel.log 2>&1 &
-
-time.sleep(5)
-print("\n👇 請點擊下方的新連結 (trycloudflare.com)：")
-!grep -o 'https://.*\.trycloudflare\.com' tunnel.log | head -n 1
