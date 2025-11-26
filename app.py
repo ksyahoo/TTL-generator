@@ -15,6 +15,7 @@ def load_font(font_file, size):
     if font_file is None:
         return ImageFont.load_default()
     try:
+        # 複製 BytesIO，避免多次讀取導致指標錯誤
         font_bytes_copy = io.BytesIO(font_file.getvalue())
         return ImageFont.truetype(font_bytes_copy, size)
     except Exception as e:
@@ -36,9 +37,7 @@ def get_darkest_color(img):
         small_img = img.resize((150, 150))
         rgb_img = small_img.convert("RGB")
         pixels = list(rgb_img.getdata())
-        # 簡單的亮度公式，數值越低越暗
         darkest = min(pixels, key=lambda p: 0.299*p[0] + 0.587*p[1] + 0.114*p[2])
-        # 轉回 Hex 色碼
         return '#{:02x}{:02x}{:02x}'.format(*darkest)
     except:
         return "#c94f3f"
@@ -102,31 +101,49 @@ def create_composite_image(bg_img, prod1_img, prod2_img, text1, text2, btn_text,
         p2 = resize_keep_aspect(images[1], target_w, target_h)
         bg.paste(p2, (CANVAS_WIDTH - p2.width - 80, start_y + 80), p2)
 
-    # 5. 繪製按鈕
-    font_btn = load_font(font_source, 48)
+    # 5. 繪製按鈕 (使用 4倍超取樣抗鋸齒技術)
     
+    # 目標尺寸與位置
     btn_w, btn_h = 311, 91
-    
-    # 位置：左移 4px, 下移 8px (y=888)
-    btn_x = (CANVAS_WIDTH - btn_w) / 2 - 4
+    btn_x = int((CANVAS_WIDTH - btn_w) / 2 - 4)
     btn_y = 888
     
-    # 畫框
-    draw.rounded_rectangle([(btn_x, btn_y), (btn_x + btn_w, btn_y + btn_h)], 
-                           radius=btn_h/2, 
-                           fill="white", 
-                           outline=theme_color, 
-                           width=3)
+    # 設定超取樣倍率 (Scale Factor)
+    scale = 4 
     
-    # 畫字 (上移 6px -> offset -14)
-    btn_text_bbox = draw.textbbox((0, 0), btn_text, font=font_btn)
+    # 建立一個放大的透明畫布
+    btn_img = Image.new('RGBA', (btn_w * scale, btn_h * scale), (0, 0, 0, 0))
+    btn_draw = ImageDraw.Draw(btn_img)
+    
+    # 載入放大的字型 (48px * 4)
+    font_btn_large = load_font(font_source, 48 * scale)
+    
+    # 繪製放大的圓角矩形
+    # 注意：所有數值都要乘以 scale
+    btn_draw.rounded_rectangle(
+        [(0, 0), (btn_w * scale, btn_h * scale)], 
+        radius=(btn_h/2) * scale, 
+        fill="white", 
+        outline=theme_color, 
+        width=3 * scale  # 框線寬度也要放大
+    )
+    
+    # 計算放大的文字位置
+    btn_text_bbox = btn_draw.textbbox((0, 0), btn_text, font=font_btn_large)
     btn_text_w = btn_text_bbox[2] - btn_text_bbox[0]
     btn_text_h = btn_text_bbox[3] - btn_text_bbox[1]
     
-    text_x = btn_x + (btn_w - btn_text_w) / 2
-    text_y = btn_y + (btn_h - btn_text_h) / 2 - 14 
+    text_x = (btn_w * scale - btn_text_w) / 2
+    text_y = (btn_h * scale - btn_text_h) / 2 - (14 * scale) # 垂直位移也要放大
     
-    draw.text((text_x, text_y), btn_text, font=font_btn, fill=theme_color)
+    # 繪製放大的文字
+    btn_draw.text((text_x, text_y), btn_text, font=font_btn_large, fill=theme_color)
+    
+    # 將畫布縮小回原始尺寸 (使用高品質 LANCZOS 濾鏡進行平滑處理)
+    btn_img_smooth = btn_img.resize((btn_w, btn_h), Image.Resampling.LANCZOS)
+    
+    # 將平滑後的按鈕貼回主圖
+    bg.paste(btn_img_smooth, (btn_x, btn_y), btn_img_smooth)
 
     return bg, theme_color
 
