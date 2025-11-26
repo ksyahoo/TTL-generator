@@ -101,31 +101,30 @@ def create_composite_image(bg_img, prod1_img, prod2_img, text1, text2, btn_text,
         p2 = resize_keep_aspect(images[1], target_w, target_h)
         bg.paste(p2, (CANVAS_WIDTH - p2.width - 80, start_y + 80), p2)
 
-    # 5. 繪製按鈕 (使用 4倍超取樣抗鋸齒技術)
+    # 5. 繪製按鈕 (4倍超取樣抗鋸齒)
     
     # 目標尺寸與位置
     btn_w, btn_h = 311, 91
     btn_x = int((CANVAS_WIDTH - btn_w) / 2 - 4)
     btn_y = 888
     
-    # 設定超取樣倍率 (Scale Factor)
+    # 設定超取樣倍率
     scale = 4 
     
     # 建立一個放大的透明畫布
     btn_img = Image.new('RGBA', (btn_w * scale, btn_h * scale), (0, 0, 0, 0))
     btn_draw = ImageDraw.Draw(btn_img)
     
-    # 載入放大的字型 (48px * 4)
+    # 載入放大的字型
     font_btn_large = load_font(font_source, 48 * scale)
     
     # 繪製放大的圓角矩形
-    # 注意：所有數值都要乘以 scale
     btn_draw.rounded_rectangle(
         [(0, 0), (btn_w * scale, btn_h * scale)], 
         radius=(btn_h/2) * scale, 
         fill="white", 
         outline=theme_color, 
-        width=3 * scale  # 框線寬度也要放大
+        width=3 * scale
     )
     
     # 計算放大的文字位置
@@ -134,15 +133,15 @@ def create_composite_image(bg_img, prod1_img, prod2_img, text1, text2, btn_text,
     btn_text_h = btn_text_bbox[3] - btn_text_bbox[1]
     
     text_x = (btn_w * scale - btn_text_w) / 2
-    text_y = (btn_h * scale - btn_text_h) / 2 - (14 * scale) # 垂直位移也要放大
+    text_y = (btn_h * scale - btn_text_h) / 2 - (14 * scale) # 垂直位移放大
     
     # 繪製放大的文字
     btn_draw.text((text_x, text_y), btn_text, font=font_btn_large, fill=theme_color)
     
-    # 將畫布縮小回原始尺寸 (使用高品質 LANCZOS 濾鏡進行平滑處理)
+    # 將畫布縮小回原始尺寸 (平滑處理)
     btn_img_smooth = btn_img.resize((btn_w, btn_h), Image.Resampling.LANCZOS)
     
-    # 將平滑後的按鈕貼回主圖
+    # 貼回主圖
     bg.paste(btn_img_smooth, (btn_x, btn_y), btn_img_smooth)
 
     return bg, theme_color
@@ -191,7 +190,8 @@ with col2:
     * 按鈕可自動偵測背景選色
     """)
     
-    text_line1 = st.text_input("主標題", "NIKE x 愛迪達")
+    # 更新預設文字為 ×
+    text_line1 = st.text_input("主標題", "NIKE × 愛迪達")
     text_line2 = st.text_input("副標題", "結帳享84折")
     btn_text = st.text_input("按鈕文字", "立即前往")
 
@@ -203,7 +203,6 @@ if st.button("生成圖片"):
             final, detected_color = create_composite_image(bg_img, p1_img, p2_img, text_line1, text_line2, btn_text, font_upload)
             
             st.success(f"生成完成！使用色碼: {detected_color}")
-            # 使用新版參數
             st.image(final, caption="預覽", use_container_width=True)
             buf = io.BytesIO()
             final.save(buf, format="PNG")
