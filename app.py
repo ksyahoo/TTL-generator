@@ -184,13 +184,12 @@ with col1:
 with col2:
     st.write("---")
     st.info("""
-    * 可上傳背景圖 
+    * **背景圖尺寸為 888 × 1020 px**
     * 可上傳兩張商品圖，圖片自動去背
     * 可自訂標題及按鈕文字
     * 按鈕可自動偵測背景選色
     """)
     
-    # 更新預設文字為 ×
     text_line1 = st.text_input("主標題", "NIKE × 愛迪達")
     text_line2 = st.text_input("副標題", "結帳享84折")
     btn_text = st.text_input("按鈕文字", "立即前往")
